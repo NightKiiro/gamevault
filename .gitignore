@@ -1,7 +1,15 @@
+# Dépendances (exigé par le sujet)
 node_modules/
+
+# Builds
 dist/
+
+# Données générées par l'API à l'exécution (games.json, .tmp, .corrupt-*)
+api/data/
+
+# Logs et environnement
 *.log
 .env
+
+# Fichiers système
 .DS_Store
-api/data/*.json
-!api/data/seed.json
