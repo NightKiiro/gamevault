@@ -2,6 +2,7 @@ import type { CoverCandidate, Game, GameInput, GamePatch } from "./types";
 import { isRecord, parseCoverList, parseGame, parseGameList } from "./guards";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+const REQUEST_TIMEOUT_MS = 8000;
 
 export class ApiError extends Error {
   readonly status: number;
@@ -19,6 +20,18 @@ export function isAbortError(err: unknown): boolean {
   return err instanceof DOMException && err.name === "AbortError";
 }
 
+function isTimeoutError(err: unknown): boolean {
+  return err instanceof DOMException && err.name === "TimeoutError";
+}
+
+function toNetworkError(err: unknown): unknown {
+  if (isTimeoutError(err)) {
+    return new ApiError(0, "L'API met trop de temps à répondre. Réessaie dans un instant.");
+  }
+  if (isAbortError(err)) return err;
+  return new ApiError(0, "Impossible de joindre l'API. Est-elle lancée ?");
+}
+
 function readErrorBody(body: unknown, status: number): ApiError {
   if (isRecord(body) && isRecord(body.error) && typeof body.error.message === "string") {
     const details = Array.isArray(body.error.details)
@@ -34,22 +47,24 @@ function readErrorBody(body: unknown, status: number): ApiError {
 }
 
 async function request(method: string, path: string, payload?: unknown, signal?: AbortSignal): Promise<unknown> {
-  const init: RequestInit = { method };
-  if (signal !== undefined) init.signal = signal;
+  const signals = [AbortSignal.timeout(REQUEST_TIMEOUT_MS)];
+  if (signal !== undefined) signals.push(signal);
+
+  const init: RequestInit = { method, signal: AbortSignal.any(signals) };
   if (payload !== undefined) {
     init.headers = { "Content-Type": "application/json" };
     init.body = JSON.stringify(payload);
   }
 
   let res: Response;
+  let text: string;
   try {
     res = await fetch(`${API_URL}${path}`, init);
+    text = await res.text();
   } catch (err) {
-    if (isAbortError(err)) throw err;
-    throw new ApiError(0, "Impossible de joindre l'API. Est-elle lancée ?");
+    throw toNetworkError(err);
   }
 
-  const text = await res.text();
   let body: unknown = undefined;
   if (text !== "") {
     try {

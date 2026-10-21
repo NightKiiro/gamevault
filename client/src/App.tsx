@@ -65,17 +65,19 @@ export function App() {
       const updated = await update(game.id, { completed: !game.completed });
       setNotice(successNotice(updated.completed ? `${updated.title} est terminé, bravo` : `${updated.title} est de retour en cours`));
     } catch (err) {
-      setNotice(errorNotice(err));
+      const notice = errorNotice(err);
+      setNotice({ ...notice, message: `${game.title} n'a pas pu être modifié : ${notice.message}` });
     }
   }
 
   async function handleDelete(game: Game): Promise<void> {
+    setDetailId(null);
     try {
       await remove(game.id);
-      setDetailId(null);
       setNotice(successNotice(`${game.title} a été retiré de ta bibliothèque`));
     } catch (err) {
-      setNotice(errorNotice(err));
+      const notice = errorNotice(err);
+      setNotice({ ...notice, message: `${game.title} n'a pas pu être supprimé et a été remis en place : ${notice.message}` });
     }
   }
 
