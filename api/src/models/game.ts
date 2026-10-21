@@ -10,6 +10,8 @@ export interface Game {
   rating: number;
   releaseYear?: number;
   hoursPlayed?: number;
+  coverUrl?: string;
+  backdropUrl?: string;
   createdAt: string;
   updatedAt: string;
 }

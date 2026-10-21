@@ -1,5 +1,5 @@
 import http from "node:http";
-import { createApp } from "../src/app";
+import { AppOptions, createApp } from "../src/app";
 import { createGameStore } from "../src/store/gameStore";
 import { SEED_GAMES } from "../src/data/seed";
 
@@ -8,9 +8,9 @@ export interface TestServer {
   close: () => Promise<void>;
 }
 
-export async function startTestServer(): Promise<TestServer> {
+export async function startTestServer(options: AppOptions = {}): Promise<TestServer> {
   const store = createGameStore({ filePath: null, seed: SEED_GAMES });
-  const app = createApp(store, { logRequests: false });
+  const app = createApp(store, { logRequests: false, ...options });
   const server = http.createServer(app);
 
   await new Promise<void>((resolve, reject) => {

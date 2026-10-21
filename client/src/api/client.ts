@@ -1,5 +1,5 @@
-import type { Game, GameInput, GamePatch } from "./types";
-import { isRecord, parseGame, parseGameList } from "./guards";
+import type { CoverCandidate, Game, GameInput, GamePatch } from "./types";
+import { isRecord, parseCoverList, parseGame, parseGameList } from "./guards";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
@@ -87,4 +87,9 @@ export async function updateGame(id: number, patch: GamePatch): Promise<Game> {
 
 export async function deleteGame(id: number): Promise<void> {
   await request("DELETE", `/games/${id}`);
+}
+
+export async function searchCovers(query: string, signal?: AbortSignal): Promise<CoverCandidate[]> {
+  const params = new URLSearchParams({ q: query });
+  return parseCoverList(await request("GET", `/covers/search?${params.toString()}`, undefined, signal));
 }

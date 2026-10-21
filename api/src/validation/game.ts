@@ -5,8 +5,6 @@ const TEXT_MAX_LENGTH = 100;
 const FIRST_YEAR = 1950;
 
 type FieldCheck = (value: unknown) => string | null;
-type RequiredField = "title" | "platform" | "genre" | "completed" | "rating";
-type OptionalField = "releaseYear" | "hoursPlayed";
 
 function text(value: unknown): string | null {
   if (typeof value !== "string") return "doit être une chaîne de caractères";
@@ -38,6 +36,24 @@ function hoursPlayed(value: unknown): string | null {
   return null;
 }
 
+type RequiredField = "title" | "platform" | "genre" | "completed" | "rating";
+type OptionalField = "releaseYear" | "hoursPlayed" | "coverUrl" | "backdropUrl";
+
+const URL_MAX_LENGTH = 500;
+
+function imageUrl(value: unknown): string | null {
+  if (typeof value !== "string") return "doit être une URL";
+  if (value.length > URL_MAX_LENGTH) return `ne doit pas dépasser ${URL_MAX_LENGTH} caractères`;
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return "doit être une URL valide";
+  }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return "doit commencer par http:// ou https://";
+  return null;
+}
+
 const REQUIRED: Record<RequiredField, FieldCheck> = {
   title: text,
   platform: text,
@@ -49,6 +65,8 @@ const REQUIRED: Record<RequiredField, FieldCheck> = {
 const OPTIONAL: Record<OptionalField, FieldCheck> = {
   releaseYear,
   hoursPlayed,
+  coverUrl: imageUrl,
+  backdropUrl: imageUrl,
 };
 
 function checkFields(
@@ -77,6 +95,8 @@ function pickKnownFields(body: Record<string, unknown>): GamePatch {
   if (typeof body.rating === "number") patch.rating = body.rating;
   if (typeof body.releaseYear === "number") patch.releaseYear = body.releaseYear;
   if (typeof body.hoursPlayed === "number") patch.hoursPlayed = body.hoursPlayed;
+  if (typeof body.coverUrl === "string") patch.coverUrl = body.coverUrl;
+  if (typeof body.backdropUrl === "string") patch.backdropUrl = body.backdropUrl;
   return patch;
 }
 
@@ -91,15 +111,15 @@ export function validateGameInput(body: unknown): ValidationResult<GameInput> {
 
   const patch = pickKnownFields(body);
   const { title, platform, genre, completed, rating: score } = patch;
-  if (
-    title === undefined || platform === undefined || genre === undefined ||
-    completed === undefined || score === undefined
-  ) {
+  if (title === undefined || platform === undefined || genre === undefined
+      || completed === undefined || score === undefined) {
     return { ok: false, errors: [{ field: "body", message: "champs obligatoires manquants" }] };
   }
   const value: GameInput = { title, platform, genre, completed, rating: score };
   if (patch.releaseYear !== undefined) value.releaseYear = patch.releaseYear;
   if (patch.hoursPlayed !== undefined) value.hoursPlayed = patch.hoursPlayed;
+  if (patch.coverUrl !== undefined) value.coverUrl = patch.coverUrl;
+  if (patch.backdropUrl !== undefined) value.backdropUrl = patch.backdropUrl;
   return { ok: true, value };
 }
 

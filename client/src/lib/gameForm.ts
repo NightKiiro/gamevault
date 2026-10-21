@@ -7,6 +7,8 @@ export interface GameFormValues {
   rating: string;
   releaseYear: string;
   hoursPlayed: string;
+  coverUrl: string;
+  backdropUrl: string;
   completed: boolean;
 }
 
@@ -23,6 +25,8 @@ export const EMPTY_FORM: GameFormValues = {
   rating: "5",
   releaseYear: "",
   hoursPlayed: "",
+  coverUrl: "",
+  backdropUrl: "",
   completed: false,
 };
 
@@ -34,6 +38,8 @@ export function valuesFromGame(game: Game): GameFormValues {
     rating: String(game.rating),
     releaseYear: game.releaseYear === undefined ? "" : String(game.releaseYear),
     hoursPlayed: game.hoursPlayed === undefined ? "" : String(game.hoursPlayed),
+    coverUrl: game.coverUrl ?? "",
+    backdropUrl: game.backdropUrl ?? "",
     completed: game.completed,
   };
 }
@@ -43,6 +49,15 @@ function optionalNumber(raw: string): number | undefined | null {
   if (trimmed === "") return undefined;
   const value = Number(trimmed);
   return Number.isFinite(value) ? value : null;
+}
+
+function isHttpUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
 }
 
 export function validateGameForm(values: GameFormValues): GameFormResult {
@@ -68,10 +83,16 @@ export function validateGameForm(values: GameFormValues): GameFormResult {
   if (hoursPlayed === null || (hoursPlayed !== undefined && hoursPlayed < 0)) {
     errors.hoursPlayed = "Nombre positif";
   }
+  const coverUrl = values.coverUrl.trim();
+  const backdropUrl = values.backdropUrl.trim();
+  if (coverUrl !== "" && !isHttpUrl(coverUrl)) errors.coverUrl = "URL http(s) attendue";
+  if (backdropUrl !== "" && !isHttpUrl(backdropUrl)) errors.backdropUrl = "URL http(s) attendue";
   if (Object.keys(errors).length > 0) return { ok: false, errors };
 
   const value: GameInput = { title, platform, genre, rating, completed: values.completed };
   if (typeof releaseYear === "number") value.releaseYear = releaseYear;
   if (typeof hoursPlayed === "number") value.hoursPlayed = hoursPlayed;
+  if (coverUrl !== "") value.coverUrl = coverUrl;
+  if (backdropUrl !== "") value.backdropUrl = backdropUrl;
   return { ok: true, value };
 }

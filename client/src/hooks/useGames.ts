@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Game, GameInput, GamePatch } from "../api/types";
-import { createGame, deleteGame, fetchGames, isAbortError, updateGame } from "../api/client";
+import { ApiError, createGame, deleteGame, fetchGame, fetchGames, isAbortError, updateGame } from "../api/client";
 import { errorNotice } from "../lib/errors";
 import type { Notice } from "../lib/errors";
 
@@ -10,6 +10,7 @@ export interface UseGames {
   loadError: Notice | null;
   pendingIds: ReadonlySet<number>;
   reload: () => void;
+  refreshOne: (id: number, signal?: AbortSignal) => Promise<void>;
   create: (input: GameInput) => Promise<Game>;
   update: (id: number, patch: GamePatch) => Promise<Game>;
   remove: (id: number) => Promise<void>;
@@ -50,6 +51,18 @@ export function useGames(): UseGames {
     });
   }, []);
 
+  const refreshOne = useCallback(async (id: number, signal?: AbortSignal) => {
+    try {
+      const fresh = await fetchGame(id, signal);
+      setGames((prev) => prev.map((g) => (g.id === id ? fresh : g)));
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        setGames((prev) => prev.filter((g) => g.id !== id));
+      }
+      throw err;
+    }
+  }, []);
+
   const create = useCallback(async (input: GameInput) => {
     const created = await createGame(input);
     setGames((prev) => [...prev, created]);
@@ -77,5 +90,5 @@ export function useGames(): UseGames {
     }
   }, [markPending]);
 
-  return { games, loading, loadError, pendingIds, reload, create, update, remove };
+  return { games, loading, loadError, pendingIds, reload, refreshOne, create, update, remove };
 }

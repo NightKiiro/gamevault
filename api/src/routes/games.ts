@@ -46,13 +46,21 @@ export function createGamesRouter(store: GameStore): Router {
   router.put("/:id", (req, res) => {
     const id = parseId(req.params.id);
     findOrThrow(store, id);
-
     const body: unknown = req.body;
-    const result = validateGamePatch(body);
-    if (!result.ok) {
-      throw new HttpError(400, "VALIDATION_ERROR", "La mise à jour est invalide", result.errors);
+
+    const full = validateGameInput(body);
+    if (full.ok) {
+      const replaced = store.replace(id, full.value);
+      if (replaced === undefined) throw gameNotFound(id);
+      res.status(200).json(replaced);
+      return;
     }
-    const updated = store.update(id, result.value);
+
+    const partial = validateGamePatch(body);
+    if (!partial.ok) {
+      throw new HttpError(400, "VALIDATION_ERROR", "La mise à jour est invalide", partial.errors);
+    }
+    const updated = store.update(id, partial.value);
     if (updated === undefined) throw gameNotFound(id);
     res.status(200).json(updated);
   });

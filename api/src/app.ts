@@ -1,16 +1,19 @@
 import express from "express";
 import cors from "cors";
 import { GameStore } from "./store/gameStore";
+import { CoverSearch, searchSteamCovers } from "./covers/steam";
 import { createGamesRouter } from "./routes/games";
+import { createCoversRouter } from "./routes/covers";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { requestLogger } from "./middleware/logger";
 
 export interface AppOptions {
   logRequests?: boolean;
+  coverSearch?: CoverSearch;
 }
 
 export function createApp(store: GameStore, options: AppOptions = {}): express.Express {
-  const { logRequests = true } = options;
+  const { logRequests = true, coverSearch = searchSteamCovers } = options;
   const app = express();
 
   app.disable("x-powered-by");
@@ -23,6 +26,7 @@ export function createApp(store: GameStore, options: AppOptions = {}): express.E
   });
 
   app.use("/games", createGamesRouter(store));
+  app.use("/covers", createCoversRouter(coverSearch));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

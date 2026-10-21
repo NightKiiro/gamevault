@@ -92,6 +92,14 @@ describe("POST /games", () => {
     }
   });
 
+  it("refuse une URL d'image en javascript:", async () => {
+    const res = await request(server, "POST", "/games", {
+      json: { ...VALID_GAME, coverUrl: "javascript:alert(1)" },
+    });
+    assert.equal(res.status, 400);
+    assert.equal(errorCode(res.body), "VALIDATION_ERROR");
+  });
+
   it("renvoie 400 sur un JSON malformé", async () => {
     const res = await request(server, "POST", "/games", { raw: '{"title": oups' });
     assert.equal(res.status, 400);
@@ -126,6 +134,17 @@ describe("PUT /games/:id", () => {
     assert.equal(res.body.completed, false);
     assert.equal(res.body.rating, 7);
     assert.equal(res.body.title, SEED_GAMES[1]?.title);
+  });
+
+  it("un PUT complet remplace le jeu et retire les champs optionnels absents", async () => {
+    const res = await request(server, "PUT", "/games/1", {
+      json: { title: "Hades", platform: "PC", genre: "Roguelike", completed: true, rating: 9 },
+    });
+    assert.equal(res.status, 200);
+    assert.ok(isRecord(res.body));
+    assert.equal(res.body.rating, 9);
+    assert.equal(res.body.coverUrl, undefined);
+    assert.equal(res.body.releaseYear, undefined);
   });
 
   it("ignore l'id et createdAt envoyés par le client", async () => {

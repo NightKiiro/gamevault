@@ -9,6 +9,7 @@ export interface GameStore {
   get(id: number): Game | undefined;
   create(input: GameInput): Game;
   update(id: number, patch: GamePatch): Game | undefined;
+  replace(id: number, input: GameInput): Game | undefined;
   remove(id: number): boolean;
 }
 
@@ -48,8 +49,7 @@ function parseSnapshot(raw: unknown): Snapshot | null {
     games.push(game);
   }
   const maxId = games.reduce((max, g) => Math.max(max, g.id), 0);
-  const storedNextId =
-    typeof raw.nextId === "number" && Number.isInteger(raw.nextId) ? raw.nextId : 0;
+  const storedNextId = typeof raw.nextId === "number" && Number.isInteger(raw.nextId) ? raw.nextId : 0;
   return { nextId: Math.max(storedNextId, maxId + 1), games };
 }
 
@@ -133,6 +133,20 @@ export function createGameStore(options: GameStoreOptions): GameStore {
       games.set(id, updated);
       persist();
       return structuredClone(updated);
+    },
+
+    replace(id, input) {
+      const current = games.get(id);
+      if (current === undefined) return undefined;
+      const replaced: Game = {
+        id: current.id,
+        ...input,
+        createdAt: current.createdAt,
+        updatedAt: new Date().toISOString(),
+      };
+      games.set(id, replaced);
+      persist();
+      return structuredClone(replaced);
     },
 
     remove(id) {
