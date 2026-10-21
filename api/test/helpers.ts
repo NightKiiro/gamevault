@@ -1,16 +1,27 @@
 import http from "node:http";
 import { AppOptions, createApp } from "../src/app";
 import { createGameStore } from "../src/store/gameStore";
+import { createPlatformStore } from "../src/store/platformStore";
+import { createLibrary } from "../src/services/library";
 import { SEED_GAMES } from "../src/data/seed";
+import { SEED_PLATFORMS } from "../src/data/platformSeed";
 
 export interface TestServer {
   baseUrl: string;
   close: () => Promise<void>;
 }
 
+export function createTestLibrary() {
+  const library = createLibrary(
+    createGameStore({ filePath: null, seed: SEED_GAMES }),
+    createPlatformStore({ filePath: null, seed: SEED_PLATFORMS }),
+  );
+  library.reconcile();
+  return library;
+}
+
 export async function startTestServer(options: AppOptions = {}): Promise<TestServer> {
-  const store = createGameStore({ filePath: null, seed: SEED_GAMES });
-  const app = createApp(store, { logRequests: false, ...options });
+  const app = createApp(createTestLibrary(), { logRequests: false, ...options });
   const server = http.createServer(app);
 
   await new Promise<void>((resolve, reject) => {

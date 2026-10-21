@@ -1,4 +1,4 @@
-import type { CoverCandidate, Game } from "./types";
+import type { CoverCandidate, Game, Platform } from "./types";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -15,6 +15,7 @@ export function parseGame(raw: unknown): Game | null {
     return null;
   }
   const game: Game = { id, title, platform, genre, completed, rating, createdAt, updatedAt };
+  if (typeof raw.platformId === "number") game.platformId = raw.platformId;
   if (typeof raw.releaseYear === "number") game.releaseYear = raw.releaseYear;
   if (typeof raw.hoursPlayed === "number") game.hoursPlayed = raw.hoursPlayed;
   if (typeof raw.coverUrl === "string") game.coverUrl = raw.coverUrl;
@@ -22,15 +23,36 @@ export function parseGame(raw: unknown): Game | null {
   return game;
 }
 
-export function parseGameList(raw: unknown): Game[] {
-  if (!Array.isArray(raw)) throw new Error("La réponse de l'API n'est pas une liste");
-  const games: Game[] = [];
-  for (const item of raw) {
-    const game = parseGame(item);
-    if (game === null) console.warn("Jeu ignoré, format inattendu :", item);
-    else games.push(game);
+export function parsePlatform(raw: unknown): Platform | null {
+  if (!isRecord(raw)) return null;
+  const { id, name, createdAt, updatedAt } = raw;
+  if (typeof id !== "number" || typeof name !== "string" || typeof createdAt !== "string" || typeof updatedAt !== "string") {
+    return null;
   }
-  return games;
+  const gameCount = typeof raw.gameCount === "number" ? raw.gameCount : 0;
+  const platform: Platform = { id, name, gameCount, createdAt, updatedAt };
+  if (typeof raw.manufacturer === "string") platform.manufacturer = raw.manufacturer;
+  if (typeof raw.releaseYear === "number") platform.releaseYear = raw.releaseYear;
+  return platform;
+}
+
+function parseList<T>(raw: unknown, parse: (item: unknown) => T | null, label: string): T[] {
+  if (!Array.isArray(raw)) throw new Error(`La réponse de l'API n'est pas une liste de ${label}`);
+  const items: T[] = [];
+  for (const entry of raw) {
+    const item = parse(entry);
+    if (item === null) console.warn(`Élément ignoré (${label}), format inattendu :`, entry);
+    else items.push(item);
+  }
+  return items;
+}
+
+export function parseGameList(raw: unknown): Game[] {
+  return parseList(raw, parseGame, "jeux");
+}
+
+export function parsePlatformList(raw: unknown): Platform[] {
+  return parseList(raw, parsePlatform, "plateformes");
 }
 
 export function parseCoverList(raw: unknown): CoverCandidate[] {

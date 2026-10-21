@@ -1,7 +1,11 @@
 import type { Theme } from "../hooks/useTheme";
 import { MoonIcon, PlusIcon, SearchIcon, SunIcon } from "./Icons";
 
+export type Page = "library" | "platforms";
+
 interface TopBarProps {
+  page: Page;
+  onNavigate: (page: Page) => void;
   query: string;
   onQueryChange: (query: string) => void;
   theme: Theme;
@@ -9,13 +13,32 @@ interface TopBarProps {
   onAdd: () => void;
 }
 
-export function TopBar({ query, onQueryChange, theme, onToggleTheme, onAdd }: TopBarProps) {
+const PAGES: { value: Page; label: string }[] = [
+  { value: "library", label: "Bibliothèque" },
+  { value: "platforms", label: "Plateformes" },
+];
+
+export function TopBar({ page, onNavigate, query, onQueryChange, theme, onToggleTheme, onAdd }: TopBarProps) {
   return (
     <header className="topbar">
       <a className="wordmark" href="/">
         <span className="wordmark-seal" aria-hidden="true" />
         GameVault
       </a>
+
+      <nav className="nav" aria-label="Sections">
+        {PAGES.map((p) => (
+          <button
+            key={p.value}
+            type="button"
+            className={page === p.value ? "nav-link nav-link-active" : "nav-link"}
+            aria-current={page === p.value ? "page" : undefined}
+            onClick={() => onNavigate(p.value)}
+          >
+            {p.label}
+          </button>
+        ))}
+      </nav>
 
       <label className="search">
         <SearchIcon />

@@ -1,5 +1,5 @@
-import type { CoverCandidate, Game, GameInput, GamePatch } from "./types";
-import { isRecord, parseCoverList, parseGame, parseGameList } from "./guards";
+import type { CoverCandidate, Game, GameInput, GamePatch, Platform, PlatformInput } from "./types";
+import { isRecord, parseCoverList, parseGame, parseGameList, parsePlatform, parsePlatformList } from "./guards";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 const REQUEST_TIMEOUT_MS = 8000;
@@ -102,6 +102,28 @@ export async function updateGame(id: number, patch: GamePatch): Promise<Game> {
 
 export async function deleteGame(id: number): Promise<void> {
   await request("DELETE", `/games/${id}`);
+}
+
+function expectPlatform(body: unknown): Platform {
+  const platform = parsePlatform(body);
+  if (platform === null) throw new ApiError(0, "Plateforme reçue dans un format inattendu");
+  return platform;
+}
+
+export async function fetchPlatforms(signal?: AbortSignal): Promise<Platform[]> {
+  return parsePlatformList(await request("GET", "/platforms", undefined, signal));
+}
+
+export async function createPlatform(input: PlatformInput): Promise<Platform> {
+  return expectPlatform(await request("POST", "/platforms", input));
+}
+
+export async function updatePlatform(id: number, input: PlatformInput): Promise<Platform> {
+  return expectPlatform(await request("PUT", `/platforms/${id}`, input));
+}
+
+export async function deletePlatform(id: number): Promise<void> {
+  await request("DELETE", `/platforms/${id}`);
 }
 
 export async function searchCovers(query: string, signal?: AbortSignal): Promise<CoverCandidate[]> {

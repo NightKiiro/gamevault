@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
-import type { GameInput } from "../api/types";
+import type { GameInput, Platform } from "../api/types";
 import { EMPTY_FORM, validateGameForm } from "../lib/gameForm";
 import type { GameFormErrors, GameFormValues } from "../lib/gameForm";
 import { Cover } from "./Cover";
@@ -9,6 +9,8 @@ import { Field } from "./Field";
 
 interface GameFormProps {
   heading: string;
+  platforms: Platform[];
+  onManagePlatforms: () => void;
   initialValues?: GameFormValues;
   submitLabel: string;
   onSubmit: (input: GameInput) => Promise<boolean>;
@@ -17,7 +19,7 @@ interface GameFormProps {
 
 type TextField = Exclude<keyof GameFormValues, "completed">;
 
-export function GameForm({ heading, initialValues = EMPTY_FORM, submitLabel, onSubmit, onCancel }: GameFormProps) {
+export function GameForm({ heading, platforms, onManagePlatforms, initialValues = EMPTY_FORM, submitLabel, onSubmit, onCancel }: GameFormProps) {
   const [values, setValues] = useState<GameFormValues>(initialValues);
   const [errors, setErrors] = useState<GameFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -28,12 +30,12 @@ export function GameForm({ heading, initialValues = EMPTY_FORM, submitLabel, onS
   }
 
   function handleText(field: TextField) {
-    return (event: ChangeEvent<HTMLInputElement>) => setField(field, event.target.value);
+    return (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setField(field, event.target.value);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const result = validateGameForm(values);
+    const result = validateGameForm(values, platforms);
     if (!result.ok) {
       setErrors(result.errors);
       return;
@@ -62,19 +64,24 @@ export function GameForm({ heading, initialValues = EMPTY_FORM, submitLabel, onS
             <input className="input" value={values.title} onChange={handleText("title")} maxLength={100} autoFocus />
           </Field>
           <div className="form-row">
-            <Field label="Plateforme" error={errors.platform}>
-              <input className="input" value={values.platform} onChange={handleText("platform")} maxLength={100} list="platform-options" />
+            <Field label="Plateforme" error={errors.platformId}>
+              <select className="input" value={values.platformId} onChange={handleText("platformId")}>
+                <option value="">Choisir…</option>
+                {platforms.map((p) => (
+                  <option key={p.id} value={String(p.id)}>{p.name}</option>
+                ))}
+              </select>
             </Field>
             <Field label="Genre" error={errors.genre}>
               <input className="input" value={values.genre} onChange={handleText("genre")} maxLength={100} />
             </Field>
           </div>
-          <datalist id="platform-options">
-            <option value="PC" />
-            <option value="PS5" />
-            <option value="Xbox Series" />
-            <option value="Switch" />
-          </datalist>
+          <p className="field-hint">
+            Ta plateforme n'est pas dans la liste ?{" "}
+            <button type="button" className="link-btn" onClick={onManagePlatforms}>
+              Gérer les plateformes
+            </button>
+          </p>
           <div className="form-row form-row-3">
             <Field label="Note sur 10" error={errors.rating}>
               <input className="input" type="number" min={0} max={10} step={0.5} value={values.rating} onChange={handleText("rating")} />

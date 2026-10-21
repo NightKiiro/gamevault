@@ -5,6 +5,7 @@ export interface Game {
   id: number;
   title: string;
   platform: string;
+  platformId?: number;
   genre: string;
   completed: boolean;
   rating: number;

@@ -33,10 +33,10 @@ npm run dev        # mode développement, rechargement automatique
 
 L'API écoute sur http://localhost:3000. Variables d'environnement :
 
-| Variable    | Défaut            | Rôle                                                     |
-|-------------|-------------------|----------------------------------------------------------|
-| `PORT`      | `3000`            | Port d'écoute                                            |
-| `DATA_FILE` | `data/games.json` | Fichier de sauvegarde. `none` = mémoire uniquement       |
+| Variable   | Défaut | Rôle                                                                 |
+|------------|--------|----------------------------------------------------------------------|
+| `PORT`     | `3000` | Port d'écoute                                                        |
+| `DATA_DIR` | `data` | Dossier de sauvegarde (`games.json`, `platforms.json`). `none` = mémoire uniquement |
 
 Version compilée : `npm run build && npm start`.
 
@@ -75,9 +75,25 @@ npm run typecheck  # tsc --strict sur le code et les tests
 | POST    | `/games`              | 201    | Créer un jeu (en-tête `Location`)      |
 | PUT     | `/games/:id`          | 200    | Corps complet : remplace. Partiel : fusionne |
 | DELETE  | `/games/:id`          | 204    | Supprimer un jeu                       |
+| GET     | `/platforms`          | 200    | Liste des plateformes (avec `gameCount`) |
+| GET     | `/platforms/:id`      | 200    | Une plateforme                         |
+| POST    | `/platforms`          | 201    | Créer une plateforme                   |
+| PUT     | `/platforms/:id`      | 200    | Modifier (un renommage est répercuté sur les jeux) |
+| DELETE  | `/platforms/:id`      | 204    | Supprimer une plateforme inutilisée    |
 | GET     | `/covers/search?q=`   | 200    | Jaquettes trouvées sur le Steam Store  |
 
-Erreurs : `400` corps ou id invalide, `404` id ou route inconnus, `502` Steam indisponible. Format :
+## Relation jeux et plateformes
+
+Un jeu garde son champ `platform` (texte, imposé par le sujet) et gagne un `platformId` optionnel :
+
+- avec `platformId`, la plateforme doit exister (sinon `400 UNKNOWN_PLATFORM`) et `platform` est recopié depuis son nom ;
+- avec seulement `platform`, le jeu est relié automatiquement si une plateforme porte ce nom (sans tenir compte de la casse), sinon il reste en texte libre ;
+- renommer une plateforme met à jour le nom sur tous ses jeux ;
+- supprimer une plateforme encore utilisée renvoie `409 PLATFORM_IN_USE` ; un nom déjà pris renvoie `409 PLATFORM_EXISTS`.
+
+## Erreurs
+
+`400` corps ou id invalide, `404` id ou route inconnus, `409` conflit, `502` Steam indisponible. Format :
 
 ```json
 { "error": { "code": "VALIDATION_ERROR", "message": "...", "details": [{ "field": "rating", "message": "..." }] } }

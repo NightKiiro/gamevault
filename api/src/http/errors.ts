@@ -17,3 +17,18 @@ export class HttpError extends Error {
 export function gameNotFound(id: number): HttpError {
   return new HttpError(404, "GAME_NOT_FOUND", `Aucun jeu avec l'id ${id}`);
 }
+
+export function platformNotFound(id: number): HttpError {
+  return new HttpError(404, "PLATFORM_NOT_FOUND", `Aucune plateforme avec l'id ${id}`);
+}
+
+export function parseId(raw: string): number {
+  if (!/^[1-9]\d*$/.test(raw)) {
+    throw new HttpError(400, "INVALID_ID", `"${raw}" n'est pas un identifiant valide`);
+  }
+  const id = Number(raw);
+  if (!Number.isSafeInteger(id)) {
+    throw new HttpError(400, "INVALID_ID", `"${raw}" est trop grand`);
+  }
+  return id;
+}

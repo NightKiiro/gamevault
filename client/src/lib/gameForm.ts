@@ -1,8 +1,8 @@
-import type { Game, GameInput } from "../api/types";
+import type { Game, GameInput, Platform } from "../api/types";
 
 export interface GameFormValues {
   title: string;
-  platform: string;
+  platformId: string;
   genre: string;
   rating: string;
   releaseYear: string;
@@ -20,7 +20,7 @@ export type GameFormResult =
 
 export const EMPTY_FORM: GameFormValues = {
   title: "",
-  platform: "",
+  platformId: "",
   genre: "",
   rating: "5",
   releaseYear: "",
@@ -30,10 +30,13 @@ export const EMPTY_FORM: GameFormValues = {
   completed: false,
 };
 
-export function valuesFromGame(game: Game): GameFormValues {
+export function valuesFromGame(game: Game, platforms: Platform[]): GameFormValues {
+  const linked =
+    platforms.find((p) => p.id === game.platformId) ??
+    platforms.find((p) => p.name.toLocaleLowerCase("fr") === game.platform.toLocaleLowerCase("fr"));
   return {
     title: game.title,
-    platform: game.platform,
+    platformId: linked === undefined ? "" : String(linked.id),
     genre: game.genre,
     rating: String(game.rating),
     releaseYear: game.releaseYear === undefined ? "" : String(game.releaseYear),
@@ -60,11 +63,11 @@ function isHttpUrl(raw: string): boolean {
   }
 }
 
-export function validateGameForm(values: GameFormValues): GameFormResult {
+export function validateGameForm(values: GameFormValues, platforms: Platform[]): GameFormResult {
   const errors: GameFormErrors = {};
   const title = values.title.trim();
-  const platform = values.platform.trim();
   const genre = values.genre.trim();
+  const platform = platforms.find((p) => String(p.id) === values.platformId);
   const rating = Number(values.rating);
   const releaseYear = optionalNumber(values.releaseYear);
   const hoursPlayed = optionalNumber(values.hoursPlayed);
@@ -72,7 +75,7 @@ export function validateGameForm(values: GameFormValues): GameFormResult {
 
   if (title === "") errors.title = "Le titre est obligatoire";
   else if (title.length > 100) errors.title = "100 caractères maximum";
-  if (platform === "") errors.platform = "La plateforme est obligatoire";
+  if (platform === undefined) errors.platformId = "Choisis une plateforme";
   if (genre === "") errors.genre = "Le genre est obligatoire";
   if (values.rating.trim() === "" || !Number.isFinite(rating) || rating < 0 || rating > 10) {
     errors.rating = "Entre 0 et 10";
@@ -87,9 +90,16 @@ export function validateGameForm(values: GameFormValues): GameFormResult {
   const backdropUrl = values.backdropUrl.trim();
   if (coverUrl !== "" && !isHttpUrl(coverUrl)) errors.coverUrl = "URL http(s) attendue";
   if (backdropUrl !== "" && !isHttpUrl(backdropUrl)) errors.backdropUrl = "URL http(s) attendue";
-  if (Object.keys(errors).length > 0) return { ok: false, errors };
+  if (platform === undefined || Object.keys(errors).length > 0) return { ok: false, errors };
 
-  const value: GameInput = { title, platform, genre, rating, completed: values.completed };
+  const value: GameInput = {
+    title,
+    platform: platform.name,
+    platformId: platform.id,
+    genre,
+    rating,
+    completed: values.completed,
+  };
   if (typeof releaseYear === "number") value.releaseYear = releaseYear;
   if (typeof hoursPlayed === "number") value.hoursPlayed = hoursPlayed;
   if (coverUrl !== "") value.coverUrl = coverUrl;

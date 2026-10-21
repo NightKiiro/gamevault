@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
-import type { Game, GameInput } from "./api/types";
+import type { Game, GameInput, Platform, PlatformInput } from "./api/types";
 import { useGames } from "./hooks/useGames";
+import { usePlatforms } from "./hooks/usePlatforms";
 import { useTheme } from "./hooks/useTheme";
 import { errorNotice, successNotice } from "./lib/errors";
 import type { Notice } from "./lib/errors";
@@ -8,11 +9,13 @@ import { valuesFromGame } from "./lib/gameForm";
 import { DEFAULT_VIEW, applyView, pickFeatured, platformsOf, plural, totalHours } from "./lib/library";
 import type { LibraryView } from "./lib/library";
 import { TopBar } from "./components/TopBar";
+import type { Page } from "./components/TopBar";
 import { Hero } from "./components/Hero";
 import { Toolbar } from "./components/Toolbar";
 import { GameGrid } from "./components/GameGrid";
 import { GameDetail } from "./components/GameDetail";
 import { GameForm } from "./components/GameForm";
+import { PlatformsPage } from "./components/PlatformsPage";
 import { Modal } from "./components/Modal";
 import { Toast } from "./components/Toast";
 
@@ -20,7 +23,10 @@ type FormState = { mode: "create" } | { mode: "edit"; game: Game } | null;
 
 export function App() {
   const { games, loading, loadError, pendingIds, reload, refreshOne, create, update, remove } = useGames();
+  const platformsState = usePlatforms();
+  const { platforms } = platformsState;
   const { theme, toggleTheme } = useTheme();
+  const [page, setPage] = useState<Page>("library");
   const [view, setView] = useState<LibraryView>(DEFAULT_VIEW);
   const [detailId, setDetailId] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>(null);
@@ -29,7 +35,7 @@ export function App() {
   const clearNotice = useCallback(() => setNotice(null), []);
 
   const visible = useMemo(() => applyView(games, view), [games, view]);
-  const platforms = useMemo(() => platformsOf(games), [games]);
+  const platformNames = useMemo(() => platformsOf(games), [games]);
   const featured = useMemo(() => pickFeatured(games), [games]);
   const doneCount = games.filter((g) => g.completed).length;
   const counts = { all: games.length, playing: games.length - doneCount, done: doneCount };
@@ -81,23 +87,72 @@ export function App() {
     }
   }
 
+  async function handleCreatePlatform(input: PlatformInput): Promise<void> {
+    const created = await platformsState.create(input);
+    setNotice(successNotice(`${created.name} a été ajoutée aux plateformes`));
+  }
+
+  async function handleUpdatePlatform(platform: Platform, input: PlatformInput): Promise<void> {
+    const saved = await platformsState.update(platform.id, input);
+    if (saved.name !== platform.name) reload();
+    setNotice(successNotice(`${saved.name} a été mise à jour`));
+  }
+
+  async function handleDeletePlatform(platform: Platform): Promise<void> {
+    try {
+      await platformsState.remove(platform.id);
+      setNotice(successNotice(`${platform.name} a été supprimée`));
+    } catch (err) {
+      setNotice(errorNotice(err));
+    }
+  }
+
+  function showPlatformGames(platform: Platform) {
+    setView({ ...DEFAULT_VIEW, platform: platform.name });
+    setPage("library");
+  }
+
   function openEdit(game: Game) {
     setDetailId(null);
     setForm({ mode: "edit", game });
   }
 
+  function managePlatforms() {
+    setForm(null);
+    setPage("platforms");
+  }
+
   return (
     <div className="app">
       <TopBar
+        page={page}
+        onNavigate={setPage}
         query={view.query}
-        onQueryChange={(query) => setView((v) => ({ ...v, query }))}
+        onQueryChange={(query) => {
+          setView((v) => ({ ...v, query }));
+          setPage("library");
+        }}
         theme={theme}
         onToggleTheme={toggleTheme}
         onAdd={() => setForm({ mode: "create" })}
       />
 
       <main className="page">
-        {loading && (
+        {page === "platforms" && (
+          <PlatformsPage
+            platforms={platforms}
+            games={games}
+            loading={platformsState.loading}
+            loadError={platformsState.loadError}
+            onReload={platformsState.reload}
+            onCreate={handleCreatePlatform}
+            onUpdate={handleUpdatePlatform}
+            onDelete={handleDeletePlatform}
+            onShowGames={showPlatformGames}
+          />
+        )}
+
+        {page === "library" && loading && (
           <div className="skeleton" aria-live="polite">
             <div className="skeleton-hero" />
             <p className="sr-only">Chargement de la bibliothèque</p>
@@ -109,7 +164,7 @@ export function App() {
           </div>
         )}
 
-        {!loading && loadError !== null && (
+        {page === "library" && !loading && loadError !== null && (
           <section className="state-panel" role="alert">
             <h1>La bibliothèque ne répond pas</h1>
             <p>{loadError.message}</p>
@@ -120,7 +175,7 @@ export function App() {
           </section>
         )}
 
-        {!loading && loadError === null && games.length === 0 && (
+        {page === "library" && !loading && loadError === null && games.length === 0 && (
           <section className="state-panel">
             <h1>Ta vitrine est vide</h1>
             <p>Ajoute un premier jeu : cherche-le sur Steam et sa jaquette s'affiche ici.</p>
@@ -130,7 +185,7 @@ export function App() {
           </section>
         )}
 
-        {!loading && loadError === null && games.length > 0 && (
+        {page === "library" && !loading && loadError === null && games.length > 0 && (
           <>
             {featured !== undefined && !isFiltered && (
               <Hero
@@ -149,7 +204,7 @@ export function App() {
                 </p>
               </div>
 
-              <Toolbar view={view} platforms={platforms} counts={counts} onChange={setView} />
+              <Toolbar view={view} platforms={platformNames} counts={counts} onChange={setView} />
 
               {visible.length > 0 ? (
                 <GameGrid games={visible} pendingIds={pendingIds} onOpen={(g) => setDetailId(g.id)} />
@@ -183,13 +238,23 @@ export function App() {
 
       <Modal open={form !== null} onClose={() => setForm(null)} labelledBy="form-title" className="modal-form">
         {form?.mode === "create" && (
-          <GameForm key="create" heading="Ajouter un jeu" submitLabel="Ajouter à la bibliothèque" onSubmit={handleCreate} onCancel={() => setForm(null)} />
+          <GameForm
+            key="create"
+            heading="Ajouter un jeu"
+            platforms={platforms}
+            onManagePlatforms={managePlatforms}
+            submitLabel="Ajouter à la bibliothèque"
+            onSubmit={handleCreate}
+            onCancel={() => setForm(null)}
+          />
         )}
         {form?.mode === "edit" && (
           <GameForm
             key={form.game.id}
             heading={`Modifier ${form.game.title}`}
-            initialValues={valuesFromGame(form.game)}
+            platforms={platforms}
+            onManagePlatforms={managePlatforms}
+            initialValues={valuesFromGame(form.game, platforms)}
             submitLabel="Enregistrer les modifications"
             onSubmit={(input) => handleEdit(form.game, input)}
             onCancel={() => setForm(null)}

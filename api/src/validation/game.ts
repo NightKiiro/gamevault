@@ -37,9 +37,14 @@ function hoursPlayed(value: unknown): string | null {
 }
 
 type RequiredField = "title" | "platform" | "genre" | "completed" | "rating";
-type OptionalField = "releaseYear" | "hoursPlayed" | "coverUrl" | "backdropUrl";
+type OptionalField = "platformId" | "releaseYear" | "hoursPlayed" | "coverUrl" | "backdropUrl";
 
 const URL_MAX_LENGTH = 500;
+
+function positiveId(value: unknown): string | null {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1) return "doit être un identifiant entier positif";
+  return null;
+}
 
 function imageUrl(value: unknown): string | null {
   if (typeof value !== "string") return "doit être une URL";
@@ -63,6 +68,7 @@ const REQUIRED: Record<RequiredField, FieldCheck> = {
 };
 
 const OPTIONAL: Record<OptionalField, FieldCheck> = {
+  platformId: positiveId,
   releaseYear,
   hoursPlayed,
   coverUrl: imageUrl,
@@ -90,6 +96,7 @@ function pickKnownFields(body: Record<string, unknown>): GamePatch {
   const patch: GamePatch = {};
   if (typeof body.title === "string") patch.title = body.title.trim();
   if (typeof body.platform === "string") patch.platform = body.platform.trim();
+  if (typeof body.platformId === "number") patch.platformId = body.platformId;
   if (typeof body.genre === "string") patch.genre = body.genre.trim();
   if (typeof body.completed === "boolean") patch.completed = body.completed;
   if (typeof body.rating === "number") patch.rating = body.rating;
@@ -116,6 +123,7 @@ export function validateGameInput(body: unknown): ValidationResult<GameInput> {
     return { ok: false, errors: [{ field: "body", message: "champs obligatoires manquants" }] };
   }
   const value: GameInput = { title, platform, genre, completed, rating: score };
+  if (patch.platformId !== undefined) value.platformId = patch.platformId;
   if (patch.releaseYear !== undefined) value.releaseYear = patch.releaseYear;
   if (patch.hoursPlayed !== undefined) value.hoursPlayed = patch.hoursPlayed;
   if (patch.coverUrl !== undefined) value.coverUrl = patch.coverUrl;
